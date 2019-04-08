@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>ContentFilters</key>
+	<dict/>
+	<key>auto_connect</key>
+	<true/>
+	<key>data</key>
+	<dict>
+		<key>connection</key>
+		<dict>
+			<key>database</key>
+			<string>final_project</string>
+			<key>host</key>
+			<string>localhost</string>
+			<key>kcid</key>
+			<string>2586857266922674290</string>
+			<key>name</key>
+			<string>localhost</string>
+			<key>rdbms_type</key>
+			<string>mysql</string>
+			<key>socket</key>
+			<string>/Applications/MAMP/tmp/mysql/mysql.sock</string>
+			<key>sslCACertFileLocation</key>
+			<string></string>
+			<key>sslCACertFileLocationEnabled</key>
+			<integer>0</integer>
+			<key>sslCertificateFileLocation</key>
+			<string></string>
+			<key>sslCertificateFileLocationEnabled</key>
+			<integer>0</integer>
+			<key>sslKeyFileLocation</key>
+			<string></string>
+			<key>sslKeyFileLocationEnabled</key>
+			<integer>0</integer>
+			<key>type</key>
+			<string>SPSocketConnection</string>
+			<key>useSSL</key>
+			<integer>0</integer>
+			<key>user</key>
+			<string>root</string>
+		</dict>
+		<key>session</key>
+		<dict>
+			<key>connectionEncoding</key>
+			<string>utf8</string>
+			<key>contentPageNumber</key>
+			<integer>1</integer>
+			<key>contentSelection</key>
+			<data>
+			YnBsaXN0MDDUAQIDBAUGOTpYJHZlcnNpb25YJG9iamVjdHNZJGFy
+			Y2hpdmVyVCR0b3ASAAGGoK0HCBUWFxgZHSQoLDE2VSRudWxs0wkK
+			CwwQFFdOUy5rZXlzWk5TLm9iamVjdHNWJGNsYXNzow0OD4ACgAOA
+			BKMREhOABYAGgAiADFR0eXBlVHJvd3NUa2V5c18QJlNlbGVjdGlv
+			bkRldGFpbFR5cGVQcmltYXJ5S2V5ZWREZXRhaWxz0wkKCxobHKCg
+			gAfSHh8gIVokY2xhc3NuYW1lWCRjbGFzc2VzXxATTlNNdXRhYmxl
+			RGljdGlvbmFyeaMgIiNcTlNEaWN0aW9uYXJ5WE5TT2JqZWN00goL
+			JSehJoAJgAvSCykqK1lOUy5zdHJpbmeAClh1c2VybmFtZdIeHy0u
+			XxAPTlNNdXRhYmxlU3RyaW5noy0vMFhOU1N0cmluZ1hOU09iamVj
+			dNIeHzIzXk5TTXV0YWJsZUFycmF5ozI0NVdOU0FycmF5WE5TT2Jq
+			ZWN00h4fIjeiIjhYTlNPYmplY3RfEA9OU0tleWVkQXJjaGl2ZXLR
+			OzxUZGF0YYABAAgAEQAaACMALQAyADcARQBLAFIAWgBlAGwAcABy
+			AHQAdgB6AHwAfgCAAIIAhwCMAJEAugDBAMIAwwDFAMoA1QDeAPQA
+			+AEFAQ4BEwEVARcBGQEeASgBKgEzATgBSgFOAVcBYAFlAXQBeAGA
+			AYkBjgGRAZoBrAGvAbQAAAAAAAACAQAAAAAAAAA9AAAAAAAAAAAA
+			AAAAAAABtg==
+			</data>
+			<key>contentSortColIsAsc</key>
+			<true/>
+			<key>contentViewport</key>
+			<string>{{0, 0}, {1313, 730}}</string>
+			<key>isToolbarVisible</key>
+			<true/>
+			<key>queries</key>
+			<string># question 4
+set @test_user = 'test_user';
+set @user_location = (select point_location from Users where username = @test_user);
+set @user_time = (select time(time_stamp) from Users where username = @test_user);
+set @user_date = (select date(time_stamp) from Users where username = @test_user);
+set @user_state = (select state from Users where username = @test_user);
+set @user_timestamp = (select time_stamp from Users where username = @test_user);
+
+drop temporary table if exists filtered_tags;
+
+create temporary table filtered_tags	#tempory table for user which contains all the tags and people user want to see base on filter and state
+select tag_name, friend_flag from Rules R left join Neighborhood N on R.NID = N.NID
+where username = @test_user and (st_contains(area_polygon, @user_location) or (R.NID is null)) and 
+check_s(R.scheduleID, @user_timestamp) and (R.state = @user_state or R.state is NULL)
+;
+if()
+select * from filtered_tags;
+
+select N.noteID, content from Note N left join Has_tag H on N.noteID = H.noteID
+where (st_distance_sphere(@user_location, point_location) &lt; radius or point_location is NULL or radius is NULL) and # checking the user's location with notes
+		check_s(scheduleID, @user_timestamp) and check_access(access, N.username, @test_user)
+				and (exists (		# checking with the user's filter's tag
+							select 1 from filtered_tags FT 
+							where (FT.tag_name is null and check_access(FT.friend_flag, N.username, @test_user)) or 
+							(FT.tag_name = H.tag_name and check_access(FT.friend_flag, N.username, @test_user))
+				));
+		
+#question 5			
+drop view if exists user_location;
+create view user_location as select username, point_location, state from Users;
+select * from user_location;
+set @testNote = 6;
+set @testNote_point = (select point_location from Note where noteID = @testNote);
+set @testNote_radius = (select radius from Note where noteID = @testNote);
+set @testNote_owner = (select username from Note where noteID = @testNote);
+set @testNote_access = (select access from Note where noteID = @testNote);
+set @testNote_schedule = (select scheduleID from Note where noteID = @testNote);
+set @curr_time = '2018-11-28 04:00:00';
+
+
+select R.username from Rules R left join Neighborhood N on R.NID = N.NID left join user_location U on U.username = R.username
+where (st_contains(area_polygon, point_location) or (R.NID is null)) and
+check_s(R.`scheduleID`, @curr_time) and (R.state = U.state or R.state is NULL) and check_s(@testNote_schedule, @curr_time) and 
+				(st_distance_sphere(point_location, @testNote_point) &lt; @testNote_radius or @testNote_point is NULL or @testNote_radius is NULL) and 
+				check_access(R.friend_flag, @testNote_owner, R.username) and check_access(@testNote_access, @testNote_owner, R.username) and 
+				(R.tag_name is NULL or exists(select 1 from Has_tag H where H.`noteID` = @testNote and H.tag_name = R.tag_name))
+;
+
+#question 6
+set @test_user = 'username3';
+set @user_location = (select point_location from Users where username = @test_user);
+set @user_time = (select time(time_stamp) from Users where username = @test_user);
+set @user_date = (select date(time_stamp) from Users where username = @test_user);
+set @user_state = (select state from Users where username = @test_user);
+set @user_timestamp = (select time_stamp from Users where username = @test_user);
+
+drop temporary table if exists filtered_tags;
+
+create temporary table filtered_tags	#tempory table for user which contains all the tags and people user want to see base on filter and state
+select tag_name, friend_flag from Rules R left join Neighborhood N on R.NID = N.NID
+where username = @test_user and (st_contains(area_polygon, @user_location) or (R.NID is null)) and 
+check_s(R.scheduleID, @user_timestamp) and (R.state = @user_state or R.state is NULL)
+;
+
+drop temporary table if exists all_notes;
+create temporary table all_notes
+select N.noteID, content from Note N left join Has_tag H on N.noteID = H.noteID
+where (st_distance_sphere(@user_location, point_location) &lt; radius or point_location is NULL or radius is NULL) and # checking the user's location with notes
+		check_s(scheduleID, @user_timestamp) and check_access(access, N.username, @test_user)
+				and (exists (		# checking with the user's filter's tag
+							select 1 from filtered_tags FT 
+							where (FT.tag_name is null and check_access(FT.friend_flag, N.username, @test_user)) or 
+							(FT.tag_name = H.tag_name and check_access(FT.friend_flag, N.username, @test_user))
+				));
+select * from all_notes; 
+
+set @keywords = 'NOTE';
+set @pattern = (select replace(@keywords, ' ', '.+'));
+select * from all_notes where content REGEXP @pattern;
+
+# function for checking schedule and access
+drop function if exists check_s
+create function check_s(sID INT, c_time datetime)
+returns boolean deterministic
+return (select (exists 
+		(select 1 from Schedules
+		where ScheduleID = sID and
+		((time(c_time) between start_time and end_time) or start_time is null or end_time is null) and
+		(repeat_flag = 1 or (repeat_flag = 2 and day(date(c_time)) = day(start_date)) 
+				or (repeat_flag = 3 and day(date(c_time)) = day(start_date) and month(date(c_time)) = month(start_date))
+				or (repeat_flag = 0 and date(c_time) = start_date)
+				or (week_flag = true and weekdays = dayofweek(date(c_time))))
+		)));
+
+drop function if exists check_access;
+create function check_access(access INT, user1 varchar(50), user_me varchar(50))
+returns boolean deterministic
+return ((access = 1 or (access = 2 and (
+		exists (select 1 from Friend F 
+		where (F.username = user1 and F.friend = user_me and F.flag = true) or (F.username = user_me and F.friend = user1 and F.flag = true) )
+												))
+					or (access = 3 and user1 = user_me)));
+					
+					
+					
+select T.friend from(select case when username = 'username2' then friend
+								when friend = 'username2' then username
+								end as friend
+								from Friend
+								where flag = true) T
+where T.friend is not NULL;
+
+UPDATE Friend SET flag = 0 where (username = 'username2' and friend = 'username3') or (friend = 'username2' and username = 'username3');
+
+
+drop PROCEDURE if exists get_notes;
+DELIMITER //
+CREATE PROCEDURE get_notes(IN p_username varchar(50), IN p_user_location point, IN p_user_state varchar(50), IN p_user_timestamp datetime)
+begin
+drop temporary table if exists filtered_tags;
+
+create temporary table filtered_tags	#tempory table for user which contains all the tags and people user want to see base on filter and state
+select tag_name, friend_flag from Rules R left join Neighborhood N on R.NID = N.NID
+where username = p_username and (st_contains(area_polygon, p_user_location) or (R.NID is null)) and 
+check_s(R.scheduleID, p_user_timestamp) and (R.state = p_user_state or R.state is NULL)
+;
+
+select N.noteID, content, allowC, username from Note N left join Has_tag H on N.noteID = H.noteID
+where (st_distance_sphere(p_user_location, point_location) &lt; radius or point_location is NULL or radius is NULL) and # checking the user's location with notes
+		check_s(scheduleID, p_user_timestamp) and check_access(access, N.username, p_username)
+				and (exists (		# checking with the user's filter's tag
+							select 1 from filtered_tags FT 
+							where (FT.tag_name is null and check_access(FT.friend_flag, N.username, p_username)) or 
+							(FT.tag_name = H.tag_name and check_access(FT.friend_flag, N.username, p_username))
+				));
+end //
+DELIMITER ;
+
+call get_notes(@test_user, @user_location, @user_state, @user_timestamp);
+
+select username from Friend where friend = 'username3' and flag = false;
+select username, comments from Comments where noteID = 2;
+</string>
+			<key>table</key>
+			<string>Users</string>
+			<key>view</key>
+			<string>SP_VIEW_CUSTOMQUERY</string>
+			<key>windowVerticalDividerPosition</key>
+			<real>214</real>
+		</dict>
+	</dict>
+	<key>encrypted</key>
+	<false/>
+	<key>format</key>
+	<string>connection</string>
+	<key>queryFavorites</key>
+	<array/>
+	<key>queryHistory</key>
+	<array>
+		<string>select * from filtered_tags</string>
+		<string>select * from filter_tags</string>
+		<string>set @test_user = 'test_user';
+set @user_location = (select point_location from Users where username = @test_user);
+set @user_time = (select time(time_stamp) from Users where username = @test_user);
+set @user_date = (select date(time_stamp) from Users where username = @test_user);
+set @user_state = (select state from Users where username = @test_user);
+set @user_timestamp = (select time_stamp from Users where username = @test_user);
+drop temporary table if exists filtered_tags;
+create temporary table filtered_tags	#tempory table for user which contains all the tags and people user want to see base on filter and state
+select tag_name, friend_flag from Rules R left join Neighborhood N on R.NID = N.NID
+where username = @test_user and (st_contains(area_polygon, @user_location) or (R.NID is null)) and 
+check_s(R.scheduleID, @user_timestamp) and (R.state = @user_state or R.state is NULL)</string>
+		<string>select username from Friend where friend = 'username3' and flag = false</string>
+		<string>select username from Friend where friend = 'username3'</string>
+		<string>call get_notes(@test_user, @user_location, @user_state, @user_timestamp)</string>
+		<string>drop PROCEDURE if exists get_notes;
+CREATE PROCEDURE get_notes(IN p_username varchar(50), IN p_user_location point, IN p_user_state varchar(50), IN p_user_timestamp datetime)
+begin
+drop temporary table if exists filtered_tags;
+
+create temporary table filtered_tags	#tempory table for user which contains all the tags and people user want to see base on filter and state
+select tag_name, friend_flag from Rules R left join Neighborhood N on R.NID = N.NID
+where username = p_username and (st_contains(area_polygon, p_user_location) or (R.NID is null)) and 
+check_s(R.scheduleID, p_user_timestamp) and (R.state = p_user_state or R.state is NULL)
+;
+
+select N.noteID, content, allowC, username from Note N left join Has_tag H on N.noteID = H.noteID
+where (st_distance_sphere(p_user_location, point_location) &lt; radius or point_location is NULL or radius is NULL) and # checking the user's location with notes
+		check_s(scheduleID, p_user_timestamp) and check_access(access, N.username, p_username)
+				and (exists (		# checking with the user's filter's tag
+							select 1 from filtered_tags FT 
+							where (FT.tag_name is null and check_access(FT.friend_flag, N.username, p_username)) or 
+							(FT.tag_name = H.tag_name and check_access(FT.friend_flag, N.username, p_username))
+				));
+end</string>
+		<string>CREATE PROCEDURE get_notes(IN p_username varchar(50), IN p_user_location point, IN p_user_state varchar(50), IN p_user_timestamp datetime)
+begin
+drop temporary table if exists filtered_tags;
+
+create temporary table filtered_tags	#tempory table for user which contains all the tags and people user want to see base on filter and state
+select tag_name, friend_flag from Rules R left join Neighborhood N on R.NID = N.NID
+where username = p_username and (st_contains(area_polygon, p_user_location) or (R.NID is null)) and 
+check_s(R.scheduleID, p_user_timestamp) and (R.state = p_user_state or R.state is NULL)
+;
+
+select N.noteID, content, allowC from Note N left join Has_tag H on N.noteID = H.noteID
+where (st_distance_sphere(p_user_location, point_location) &lt; radius or point_location is NULL or radius is NULL) and # checking the user's location with notes
+		check_s(scheduleID, p_user_timestamp) and check_access(access, N.username, p_username)
+				and (exists (		# checking with the user's filter's tag
+							select 1 from filtered_tags FT 
+							where (FT.tag_name is null and check_access(FT.friend_flag, N.username, p_username)) or 
+							(FT.tag_name = H.tag_name and check_access(FT.friend_flag, N.username, p_username))
+				));
+end</string>
+		<string>drop PROCEDURE if exists get_notes</string>
+		<string>CREATE PROCEDURE get_notes(IN p_username varchar(50), IN p_user_location point, IN p_user_state varchar(50), IN p_user_timestamp datetime)
+begin
+drop temporary table if exists filtered_tags;
+
+create temporary table filtered_tags	#tempory table for user which contains all the tags and people user want to see base on filter and state
+select tag_name, friend_flag from Rules R left join Neighborhood N on R.NID = N.NID
+where username = p_username and (st_contains(area_polygon, p_user_location) or (R.NID is null)) and 
+check_s(R.scheduleID, p_user_timestamp) and (R.state = p_user_state or R.state is NULL)
+;
+
+select N.noteID, content from Note N left join Has_tag H on N.noteID = H.noteID
+where (st_distance_sphere(p_user_location, point_location) &lt; radius or point_location is NULL or radius is NULL) and # checking the user's location with notes
+		check_s(scheduleID, p_user_timestamp) and check_access(access, N.username, p_username)
+				and (exists (		# checking with the user's filter's tag
+							select 1 from filtered_tags FT 
+							where (FT.tag_name is null and check_access(FT.friend_flag, N.username, p_username)) or 
+							(FT.tag_name = H.tag_name and check_access(FT.friend_flag, N.username, p_username))
+				));
+end</string>
+		<string>CREATE PROCEDURE get_notes(IN )
+begin
+end</string>
+		<string>drop temporary table if exists filtered_tags;
+create temporary table filtered_tags	#tempory table for user which contains all the tags and people user want to see base on filter and state
+select tag_name, friend_flag from Rules R left join Neighborhood N on R.NID = N.NID
+where username = @test_user and (st_contains(area_polygon, @user_location) or (R.NID is null)) and 
+check_s(R.scheduleID, @user_timestamp) and (R.state = @user_state or R.state is NULL)</string>
+		<string>set @test_user = 'username3';
+set @user_location = (select point_location from Users where username = @test_user);
+set @user_time = (select time(time_stamp) from Users where username = @test_user);
+set @user_date = (select date(time_stamp) from Users where username = @test_user);
+set @user_state = (select state from Users where username = @test_user);
+set @user_timestamp = (select time_stamp from Users where username = @test_user);
+drop temporary table if exists filtered_tags;
+create temporary table filtered_tags	#tempory table for user which contains all the tags and people user want to see base on filter and state
+select tag_name, friend_flag from Rules R left join Neighborhood N on R.NID = N.NID
+where username = @test_user and (st_contains(area_polygon, @user_location) or (R.NID is null)) and 
+check_s(R.scheduleID, @user_timestamp) and (R.state = @user_state or R.state is NULL);
+select N.noteID, content from Note N left join Has_tag H on N.noteID = H.noteID
+where (st_distance_sphere(@user_location, point_location) &lt; radius or point_location is NULL or radius is NULL) and # checking the user's location with notes
+		check_s(scheduleID, @user_timestamp) and check_access(access, N.username, @test_user)
+				and (exists (		# checking with the user's filter's tag
+							select 1 from filtered_tags FT 
+							where (FT.tag_name is null and check_access(FT.friend_flag, N.username, @test_user)) or 
+							(FT.tag_name = H.tag_name and check_access(FT.friend_flag, N.username, @test_user))
+				))</string>
+		<string>UPDATE Friend SET flag = 0 where (username = 'username2' and friend = 'username3') or (friend = 'username2' and username = 'username3')</string>
+		<string>UPDATE Friend SET flag = 1 where (username = 'username2' and friend = 'username3') or (friend = 'username2' and username = 'username3')</string>
+		<string>select T.friend from(select case when username = 'username2' then friend
+								when friend = 'username2' then username
+								end as friend
+								from Friend
+								where flag = true) T
+where T.friend is not NULL</string>
+		<string>select T.friend from(select case when username = 'username2' then friend
+								when friend = 'username2' then username
+								end as friend
+								from Friend
+								where flag = false) T
+where T.friend is not NULL</string>
+		<string>select T.friend from(select case when username = 'username2' then friend
+								when friend = 'username2' then username
+								end as friend
+								from Friend
+								where flag = ture) T
+where T.friend is not NULL</string>
+		<string># (3) show friend list
+select 'username2' in (select T.friend from(select case when username = 'username2' then friend
+								when friend = 'username2' then username
+								end as `friend`
+					from Friend
+					where flag = true) T
+where T.friend is not NULL)</string>
+		<string>select * from Users</string>
+	</array>
+	<key>rdbms_type</key>
+	<string>mysql</string>
+	<key>rdbms_version</key>
+	<string>5.7.23</string>
+	<key>version</key>
+	<integer>1</integer>
+</dict>
+</plist>
